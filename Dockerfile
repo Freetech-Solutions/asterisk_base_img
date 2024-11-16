@@ -4,7 +4,8 @@ FROM debian:bookworm-slim AS build
 ENV LANG en_US.utf8
 ENV NOTVISIBLE "in users profile"
 ENV ASTERISK_VERSION=20.10.0
-ENV ASTERISK_AUDIO_PROMPTS=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-en-alaw-current.tar.gz
+ENV ASTERISK_AUDIO_PROMPTS_EN=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-en-wav-current.tar.gz
+ENV ASTERISK_AUDIO_PROMPTS_ES=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-es-wav-current.tar.gz
 ENV OMNILEADS_AUDIO_PROMPTS=https://omnileads.sfo3.digitaloceanspaces.com/asterisk-oml-sounds-current.tar.gz
 ENV OMNILEADS_MOH=https://fts-public-packages.s3-sa-east-1.amazonaws.com/asterisk/asterisk-oml-moh-current.tar.gz
 
@@ -41,25 +42,20 @@ RUN mkdir -p /usr/src/asterisk && \
     rm -rf /usr/src/asterisk
 
 # Descargar sonidos
-RUN mkdir -p /var/lib/asterisk/sounds/en /var/lib/asterisk/sounds/oml /var/lib/asterisk/moh && \
-    wget -q $ASTERISK_AUDIO_PROMPTS -O core-sounds.tar.gz && \
-    tar xzf core-sounds.tar.gz -C /var/lib/asterisk/sounds/en && \
-    rm core-sounds.tar.gz && \
-    wget -q $OMNILEADS_AUDIO_PROMPTS -O oml-sounds.tar.gz && \
-    tar xzf oml-sounds.tar.gz -C /var/lib/asterisk/sounds/oml && \
-    rm oml-sounds.tar.gz && \
-    wget -q $OMNILEADS_MOH -O oml-moh.tar.gz && \
-    tar xzf oml-moh.tar.gz -C /var/lib/asterisk/moh && \
-    rm oml-moh.tar.gz
+RUN mkdir -p /var/lib/asterisk/sounds/oml /var/lib/asterisk/sounds/en /var/lib/asterisk/sounds/es /var/lib/asterisk/sounds/oml /var/lib/asterisk/moh && \
+    wget -q $ASTERISK_AUDIO_PROMPTS_EN -O - | tar xzv -C /var/lib/asterisk/sounds/en || true && \
+    wget -q $ASTERISK_AUDIO_PROMPTS_ES -O - | tar xzv -C /var/lib/asterisk/sounds/es || true && \
+    wget -q $OMNILEADS_AUDIO_PROMPTS -O - | tar xzv -C /var/lib/asterisk/sounds/oml || true && \
+    wget -q $OMNILEADS_MOH -O - | tar xzv -C /var/lib/asterisk/moh || true
 
 # Limpiar herramientas de compilación
-RUN apt-get remove --purge -y git build-essential && \
-    apt-get autoremove -y && \
-    apt-get clean && \
+RUN apt remove --purge -y git build-essential && \
+    apt autoremove -y && \
+    apt clean && \
     rm -rf /var/lib/apt/lists/* /usr/include/asterisk
 
 # Etapa 2: Runtime
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm AS run
 
 ENV LANG en_US.utf8
 ENV NOTVISIBLE "in users profile"
@@ -68,8 +64,8 @@ ENV NOTVISIBLE "in users profile"
 RUN apt update -qq && \
     apt install -y --no-install-recommends \
       binutils libicu-dev && \
-    apt-get autoremove -y && \
-    apt-get clean && \
+    apt autoremove -y && \
+    apt clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Copiar binarios y configuraciones de Asterisk desde la etapa de compilación
@@ -98,9 +94,3 @@ COPY ./modules.conf /etc/asterisk/modules.conf
 RUN chmod -R 750 /var/lib/asterisk /var/spool/asterisk /var/log/asterisk && \
     useradd -r -s /bin/false asterisk && \
     chown -R asterisk:asterisk /var/lib/asterisk /var/spool/asterisk /var/log/asterisk
-
-EXPOSE 5060/udp
-
-#USER asterisk
-
-#CMD ["asterisk", "-f", "-U", "asterisk"]
