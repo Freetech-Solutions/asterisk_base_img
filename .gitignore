@@ -1,0 +1,9 @@
+source/agis/__pycache__/
+source/astconf/oml_pjsip_agents.conf
+source/astconf/oml_pjsip_trunks.conf
+source/astconf/oml_queues.conf
+source/astconf/oml_extensions_outr.conf
+source/astconf/oml_moh.conf
+source/astconf/oml_sip_registrations.conf
+source/astconf/oml_sip_trunks.conf
+source/astconf/websockets.log
