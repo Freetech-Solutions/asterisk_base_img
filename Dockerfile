@@ -14,7 +14,7 @@ RUN apt update -qq && \
     apt install -y --no-install-recommends \
       autoconf automake build-essential \
       binutils-dev libpopt-dev libcurl4-openssl-dev \
-      libedit-dev libgsm1-dev libogg-dev libresample1-dev \
+      libedit-dev libgsm1 libgsm1-dev libogg-dev libresample1-dev \
       libspandsp-dev libspeex-dev libspeexdsp-dev \
       libsqlite3-dev libsrtp2-dev libssl-dev libvorbis-dev \
       libxml2-dev libxslt1-dev portaudio19-dev procps subversion \
@@ -40,6 +40,11 @@ RUN mkdir -p /usr/src/asterisk && \
     make install && \
     make samples && \
     rm -rf /usr/src/asterisk
+
+# Install codec g729
+RUN wget http://asterisk.hosting.lv/bin/codec_g729-ast200-gcc4-glibc-x86_64-pentium4.so && \
+    mv codec_g729* /usr/lib/asterisk/modules/codec_g729.so && \
+    chmod +x /usr/lib/asterisk/modules/codec_g729.so
 
 # Descargar sonidos
 RUN mkdir -p /var/lib/asterisk/sounds/oml /var/lib/asterisk/sounds/en /var/lib/asterisk/sounds/es /var/lib/asterisk/sounds/oml /var/lib/asterisk/moh && \
