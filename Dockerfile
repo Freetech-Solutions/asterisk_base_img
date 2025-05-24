@@ -3,7 +3,7 @@ FROM debian:bookworm-slim AS build
 
 ENV LANG en_US.utf8
 ENV NOTVISIBLE "in users profile"
-ENV ASTERISK_VERSION=20.10.0
+ENV ASTERISK_VERSION=20.14.0
 ENV ASTERISK_AUDIO_PROMPTS_EN=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-en-wav-current.tar.gz
 ENV ASTERISK_AUDIO_PROMPTS_ES=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-es-wav-current.tar.gz
 ENV OMNILEADS_AUDIO_PROMPTS=https://omnileads.sfo3.digitaloceanspaces.com/asterisk-oml-sounds-current.tar.gz
@@ -60,7 +60,7 @@ RUN apt remove --purge -y git build-essential && \
     rm -rf /var/lib/apt/lists/* /usr/include/asterisk
 
 # Etapa 2: Runtime
-FROM python:3.12-slim-bookworm AS run
+FROM python:3.8-slim-bookworm AS run
 
 ENV LANG en_US.utf8
 ENV NOTVISIBLE "in users profile"
