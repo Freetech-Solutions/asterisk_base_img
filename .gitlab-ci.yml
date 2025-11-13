@@ -18,14 +18,14 @@ container-image-dev:
     - |-
       if [ "${CI_COMMIT_BRANCH}" == "main" ]; then
         echo "${DOCKER_SECRET}" | docker login --username "${DOCKER_USERNAME}" --password-stdin
-        IMAGE_VERSION=$(cat version.txt)
+        IMAGE_VERSION="$(date +%Y%m%d)-${CI_COMMIT_SHORT_SHA}"
         docker tag run omnileads/asterisk_base_img:$IMAGE_VERSION
         docker push docker.io/omnileads/asterisk_base_img:$IMAGE_VERSION
       else
         echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USER}" --password-stdin
-        IMAGE_VERSION=$(cat version.txt)
-        docker tag run omnileads/asterisk_base_img:$IMAGE_VERSION
-        docker push docker.io/omnileads/asterisk_base_img:$IMAGE_VERSION
+        IMAGE_VERSION="$(date +%Y%m%d)-${CI_COMMIT_SHORT_SHA}"
+        docker tag run freetechsolutions/asterisk:$IMAGE_VERSION
+        docker push docker.io/freetechsolutions/asterisk:$IMAGE_VERSION
       fi  
   rules:
     - if: '$CI_COMMIT_REF_NAME =~ /build/'
