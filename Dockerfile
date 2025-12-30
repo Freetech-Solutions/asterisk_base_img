@@ -1,15 +1,16 @@
 # Etapa 1: Build
 FROM debian:bookworm-slim AS build
 
+# Argumento automático de Docker para detectar arquitectura (amd64 o arm64)
+ARG TARGETARCH
+
 ENV LANG=en_US.utf8
-ENV NOTVISIBLE="in users profile"
 ENV ASTERISK_VERSION=20.17.0
 ENV ASTERISK_AUDIO_PROMPTS_EN=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-en-wav-current.tar.gz
 ENV ASTERISK_AUDIO_PROMPTS_ES=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-es-wav-current.tar.gz
 ENV OMNILEADS_AUDIO_PROMPTS=https://omnileads.sfo3.digitaloceanspaces.com/asterisk-oml-sounds-current.tar.gz
 ENV OMNILEADS_MOH=https://fts-public-packages.s3-sa-east-1.amazonaws.com/asterisk/asterisk-oml-moh-current.tar.gz
 
-# Instalar herramientas de compilación y dependencias
 RUN apt update -qq && \
     apt install -y --no-install-recommends \
       autoconf automake build-essential \
@@ -22,11 +23,11 @@ RUN apt update -qq && \
       sox git lame && \
     rm -rf /var/lib/apt/lists/*
 
-# Clonar y compilar Asterisk
 RUN mkdir -p /usr/src/asterisk && \
     git clone --branch ${ASTERISK_VERSION} https://github.com/asterisk/asterisk.git /usr/src/asterisk && \
     cd /usr/src/asterisk && \
     contrib/scripts/get_mp3_source.sh && \
+    # build_native deshabilitado es crucial para portabilidad
     ./configure --with-resample --with-pjproject-bundled --with-jansson-bundled && \
     make menuselect/menuselect menuselect-tree menuselect.makeopts && \
     menuselect/menuselect --disable BUILD_NATIVE menuselect.makeopts && \
@@ -41,23 +42,36 @@ RUN mkdir -p /usr/src/asterisk && \
     make samples && \
     rm -rf /usr/src/asterisk
 
-# Install codec g729
-RUN wget http://asterisk.hosting.lv/bin/codec_g729-ast200-gcc4-glibc-x86_64-pentium4.so && \
-    mv codec_g729* /usr/lib/asterisk/modules/codec_g729.so && \
-    chmod +x /usr/lib/asterisk/modules/codec_g729.so
+# Lógica condicional para G729 según arquitectura
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        wget http://asterisk.hosting.lv/bin/codec_g729-ast200-gcc4-glibc-x86_64-pentium4.so && \
+        mv codec_g729* /usr/lib/asterisk/modules/codec_g729.so && \
+        chmod +x /usr/lib/asterisk/modules/codec_g729.so; \
+    else \
+        echo "AVISO: Arquitectura ARM detectada ($TARGETARCH). Saltando instalación de binario G729 x86."; \
+    fi
 
 # Descargar sonidos
-RUN mkdir -p /var/lib/asterisk/sounds/oml /var/lib/asterisk/sounds/en /var/lib/asterisk/sounds/es /var/lib/asterisk/sounds/oml /var/lib/asterisk/moh && \
+RUN mkdir -p /var/lib/asterisk/sounds/oml /var/lib/asterisk/sounds/en /var/lib/asterisk/sounds/es /var/lib/asterisk/moh && \
     wget -q $ASTERISK_AUDIO_PROMPTS_EN -O - | tar xzv -C /var/lib/asterisk/sounds/en || true && \
     wget -q $ASTERISK_AUDIO_PROMPTS_ES -O - | tar xzv -C /var/lib/asterisk/sounds/es || true && \
     wget -q $OMNILEADS_AUDIO_PROMPTS -O - | tar xzv -C /var/lib/asterisk/sounds/oml || true && \
     wget -q $OMNILEADS_MOH -O - | tar xzv -C /var/lib/asterisk/moh || true
 
-# Limpiar herramientas de compilación
-RUN apt remove --purge -y git build-essential && \
-    apt autoremove -y && \
-    apt clean && \
-    rm -rf /var/lib/apt/lists/* /usr/include/asterisk
+# --- PREPARACIÓN DE LIBRERÍAS (EL TRUCO EXPERTO) ---
+# En lugar de copiar rutas hardcodeadas en la etapa final, las reunimos aquí.
+# Usamos el comando find o copiamos basándonos en la arquitectura dinámica.
+RUN mkdir -p /export-libs && \
+    # Detectar path de librerias segun arquitectura
+    if [ "$TARGETARCH" = "amd64" ]; then LIBPATH="/usr/lib/x86_64-linux-gnu"; else LIBPATH="/usr/lib/aarch64-linux-gnu"; fi && \
+    cp $LIBPATH/libsqlite3.so.0 /export-libs/ && \
+    cp $LIBPATH/libxml2.so.2 /export-libs/ && \
+    cp $LIBPATH/libxslt.so.1 /export-libs/ && \
+    cp $LIBPATH/libssl.so.3 /export-libs/ && \
+    cp $LIBPATH/libcrypto.so.3 /export-libs/ && \
+    cp $LIBPATH/libedit.so.2 /export-libs/ && \
+    cp $LIBPATH/libbsd.so.0 /export-libs/ && \
+    cp $LIBPATH/libcurl.so.4 /export-libs/
 
 # Etapa 2: Runtime
 FROM python:3.10-slim-bookworm AS run
@@ -65,7 +79,9 @@ FROM python:3.10-slim-bookworm AS run
 ENV LANG=en_US.utf8
 ENV NOTVISIBLE="in users profile"
 
-# Instalar dependencias de ejecución mínimas
+# Determinar arquitectura para saber dónde poner las libs
+ARG TARGETARCH
+
 RUN apt update -qq && \
     apt install -y --no-install-recommends \
       binutils libicu-dev && \
@@ -73,7 +89,7 @@ RUN apt update -qq && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Copiar binarios y configuraciones de Asterisk desde la etapa de compilación
+# Copiar Asterisk
 COPY --from=build /usr/local /usr/local
 COPY --from=build /usr/lib/libasterisk* /usr/lib/
 COPY --from=build /etc/asterisk /etc/asterisk/
@@ -84,18 +100,15 @@ COPY --from=build /usr/lib/asterisk /usr/lib/asterisk/
 COPY --from=build /var/run/asterisk/ /var/run/asterisk/
 COPY --from=build /usr/sbin/ast* /usr/sbin/
 
-COPY --from=build /usr/lib/x86_64-linux-gnu/libsqlite3.so.0 /usr/lib/x86_64-linux-gnu/libsqlite3.so.0
-COPY --from=build /usr/lib/x86_64-linux-gnu/libxml2.so.2 /usr/lib/x86_64-linux-gnu/libxml2.so.2
-COPY --from=build /usr/lib/x86_64-linux-gnu/libxslt.so.1 /usr/lib/x86_64-linux-gnu/libxslt.so.1
-COPY --from=build /usr/lib/x86_64-linux-gnu/libssl.so.3 /usr/lib/x86_64-linux-gnu/libssl.so.3
-COPY --from=build /usr/lib/x86_64-linux-gnu/libcrypto.so.3 /usr/lib/x86_64-linux-gnu/libcrypto.so.3
-COPY --from=build /usr/lib/x86_64-linux-gnu/libedit.so.2 /usr/lib/x86_64-linux-gnu/libedit.so.2
-COPY --from=build /usr/lib/x86_64-linux-gnu/libbsd.so.0 /usr/lib/x86_64-linux-gnu/libbsd.so.0
-COPY --from=build /usr/lib/x86_64-linux-gnu/libcurl.so.4 /usr/lib/x86_64-linux-gnu/libcurl.so.4
+# Copiar librerias dinámicas desde la carpeta "neutral" que creamos
+# Primero definimos dónde van según la arquitectura de ESTA imagen run
+RUN if [ "$TARGETARCH" = "amd64" ]; then mkdir -p /usr/lib/x86_64-linux-gnu; else mkdir -p /usr/lib/aarch64-linux-gnu; fi
+COPY --from=build /export-libs/ /usr/lib/x86_64-linux-gnu/
+# NOTA: Si es ARM, necesitamos moverlas al path correcto porque COPY no acepta variables en destino fácilmente
+RUN if [ "$TARGETARCH" = "arm64" ]; then mv /usr/lib/x86_64-linux-gnu/* /usr/lib/aarch64-linux-gnu/ && rmdir /usr/lib/x86_64-linux-gnu; fi
 
 COPY ./modules.conf /etc/asterisk/modules.conf
 
-# Configuración de permisos
 RUN chmod -R 750 /var/lib/asterisk /var/spool/asterisk /var/log/asterisk && \
     useradd -r -s /bin/false asterisk && \
     chown -R asterisk:asterisk /var/lib/asterisk /var/spool/asterisk /var/log/asterisk
