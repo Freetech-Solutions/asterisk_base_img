@@ -1,11 +1,11 @@
 # Etapa 1: Build
-FROM debian:bookworm-slim AS build
+FROM debian:trixie-slim AS build
 
 # Argumento automático de Docker para detectar arquitectura (amd64 o arm64)
 ARG TARGETARCH
 
 ENV LANG=en_US.utf8
-ENV ASTERISK_VERSION=20.17.0
+ENV ASTERISK_VERSION=22.7.0
 ENV ASTERISK_AUDIO_PROMPTS_EN=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-en-wav-current.tar.gz
 ENV ASTERISK_AUDIO_PROMPTS_ES=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-es-wav-current.tar.gz
 ENV OMNILEADS_AUDIO_PROMPTS=https://omnileads.sfo3.digitaloceanspaces.com/asterisk-oml-sounds-current.tar.gz
@@ -74,7 +74,7 @@ RUN mkdir -p /export-libs && \
     cp $LIBPATH/libcurl.so.4 /export-libs/
 
 # Etapa 2: Runtime
-FROM python:3.10-slim-bookworm AS run
+FROM python:3.10-slim-trixie AS run
 
 ENV LANG=en_US.utf8
 ENV NOTVISIBLE="in users profile"
