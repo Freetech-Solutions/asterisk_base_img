@@ -20,7 +20,9 @@ RUN apt update -qq && \
       libsqlite3-dev libsrtp2-dev libssl-dev libvorbis-dev \
       libxml2-dev libxslt1-dev portaudio19-dev procps subversion \
       uuid-dev xmlstarlet libjansson-dev curl wget ca-certificates \
-      sox git lame && \
+      sox git lame \
+      ### AÑADIDO PARA ARA/ODBC (Dependencias de compilación) ### \
+      unixodbc-dev libpq-dev odbc-postgresql && \
     rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /usr/src/asterisk && \
@@ -34,6 +36,11 @@ RUN mkdir -p /usr/src/asterisk && \
     menuselect/menuselect --enable BETTER_BACKTRACES menuselect.makeopts && \
     menuselect/menuselect --enable codec_gsm menuselect.makeopts && \
     menuselect/menuselect --enable codec_opus menuselect.makeopts && \
+    ### AÑADIDO PARA ARA/ODBC (Habilitar módulos) ### \
+    menuselect/menuselect --enable res_odbc menuselect.makeopts && \
+    menuselect/menuselect --enable res_config_odbc menuselect.makeopts && \
+    menuselect/menuselect --enable func_odbc menuselect.makeopts && \
+    ### Fin añadido ### \
     menuselect/menuselect --disable-category MENUSELECT_CORE_SOUNDS menuselect.makeopts && \
     menuselect/menuselect --disable-category MENUSELECT_MOH menuselect.makeopts && \
     menuselect/menuselect --disable-category MENUSELECT_EXTRA_SOUNDS menuselect.makeopts && \
@@ -42,7 +49,7 @@ RUN mkdir -p /usr/src/asterisk && \
     make samples && \
     rm -rf /usr/src/asterisk
 
-# Lógica condicional para G729 según arquitectura
+# Lógica condicional para G729 según arquitectura (INTACTA)
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
         wget http://asterisk.hosting.lv/bin/codec_g729-ast200-gcc4-glibc-x86_64-pentium4.so && \
         mv codec_g729* /usr/lib/asterisk/modules/codec_g729.so && \
@@ -58,9 +65,7 @@ RUN mkdir -p /var/lib/asterisk/sounds/oml /var/lib/asterisk/sounds/en /var/lib/a
     wget -q $OMNILEADS_AUDIO_PROMPTS -O - | tar xzv -C /var/lib/asterisk/sounds/oml || true && \
     wget -q $OMNILEADS_MOH -O - | tar xzv -C /var/lib/asterisk/moh || true
 
-# --- PREPARACIÓN DE LIBRERÍAS (EL TRUCO EXPERTO) ---
-# En lugar de copiar rutas hardcodeadas en la etapa final, las reunimos aquí.
-# Usamos el comando find o copiamos basándonos en la arquitectura dinámica.
+# --- PREPARACIÓN DE LIBRERÍAS ---
 RUN mkdir -p /export-libs && \
     # Detectar path de librerias segun arquitectura
     if [ "$TARGETARCH" = "amd64" ]; then LIBPATH="/usr/lib/x86_64-linux-gnu"; else LIBPATH="/usr/lib/aarch64-linux-gnu"; fi && \
@@ -79,12 +84,16 @@ FROM python:3.10-slim-trixie AS run
 ENV LANG=en_US.utf8
 ENV NOTVISIBLE="in users profile"
 
-# Determinar arquitectura para saber dónde poner las libs
+# Determinar arquitectura
 ARG TARGETARCH
 
 RUN apt update -qq && \
     apt install -y --no-install-recommends \
-      binutils libicu-dev && \
+      binutils libicu-dev \
+      ### AÑADIDO PARA ARA/ODBC (Drivers de ejecución) ### \
+      # IMPORTANTE: Es mejor instalar esto por apt que copiar .so manualmente \
+      # porque ODBC depende de plugins y configuraciones en /etc \
+      unixodbc odbc-postgresql libpq5 && \
     apt autoremove -y && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
@@ -100,11 +109,9 @@ COPY --from=build /usr/lib/asterisk /usr/lib/asterisk/
 COPY --from=build /var/run/asterisk/ /var/run/asterisk/
 COPY --from=build /usr/sbin/ast* /usr/sbin/
 
-# Copiar librerias dinámicas desde la carpeta "neutral" que creamos
-# Primero definimos dónde van según la arquitectura de ESTA imagen run
+# Copiar librerias dinámicas "exportadas" manualmente
 RUN if [ "$TARGETARCH" = "amd64" ]; then mkdir -p /usr/lib/x86_64-linux-gnu; else mkdir -p /usr/lib/aarch64-linux-gnu; fi
 COPY --from=build /export-libs/ /usr/lib/x86_64-linux-gnu/
-# NOTA: Si es ARM, necesitamos moverlas al path correcto porque COPY no acepta variables en destino fácilmente
 RUN if [ "$TARGETARCH" = "arm64" ]; then mv /usr/lib/x86_64-linux-gnu/* /usr/lib/aarch64-linux-gnu/ && rmdir /usr/lib/x86_64-linux-gnu; fi
 
 COPY ./modules.conf /etc/asterisk/modules.conf
