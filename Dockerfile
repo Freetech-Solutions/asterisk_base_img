@@ -5,7 +5,7 @@ FROM debian:trixie-slim AS build
 ARG TARGETARCH
 
 ENV LANG=en_US.utf8
-ENV ASTERISK_VERSION=22.7.0
+ENV ASTERISK_VERSION=22.8.2
 ENV ASTERISK_AUDIO_PROMPTS_EN=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-en-wav-current.tar.gz
 ENV ASTERISK_AUDIO_PROMPTS_ES=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-es-wav-current.tar.gz
 ENV OMNILEADS_AUDIO_PROMPTS=https://omnileads.sfo3.digitaloceanspaces.com/asterisk-oml-sounds-current.tar.gz
@@ -59,7 +59,7 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     fi
 
 # Descargar sonidos
-RUN mkdir -p /var/lib/asterisk/sounds/oml /var/lib/asterisk/sounds/en /var/lib/asterisk/sounds/es /var/lib/asterisk/moh && \
+RUN mkdir -p /var/lib/asterisk/sounds/oml /var/lib/asterisk/sounds/en /var/lib/asterisk/sounds/es /var/lib/asterisk/moh /etc/asterisk/certs && \
     wget -q $ASTERISK_AUDIO_PROMPTS_EN -O - | tar xzv -C /var/lib/asterisk/sounds/en || true && \
     wget -q $ASTERISK_AUDIO_PROMPTS_ES -O - | tar xzv -C /var/lib/asterisk/sounds/es || true && \
     wget -q $OMNILEADS_AUDIO_PROMPTS -O - | tar xzv -C /var/lib/asterisk/sounds/oml || true && \
