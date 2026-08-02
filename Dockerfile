@@ -9,7 +9,7 @@ ENV ASTERISK_VERSION=22.10.1
 ENV ASTERISK_AUDIO_PROMPTS_EN=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-en-wav-current.tar.gz
 ENV ASTERISK_AUDIO_PROMPTS_ES=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-es-wav-current.tar.gz
 ENV OMNILEADS_AUDIO_PROMPTS=https://omnileads.sfo3.digitaloceanspaces.com/asterisk-oml-sounds-current.tar.gz
-ENV OMNILEADS_MOH=https://fts-public-packages.s3-sa-east-1.amazonaws.com/asterisk/asterisk-oml-moh-current.tar.gz
+ENV OMNILEADS_MOH=https://omnileads.sfo3.digitaloceanspaces.com/asterisk-oml-moh-current.tar.gz
 
 RUN apt update -qq && apt upgrade -y && \
     apt install -y --no-install-recommends \
