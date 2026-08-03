@@ -10,6 +10,8 @@ ENV ASTERISK_AUDIO_PROMPTS_EN=https://downloads.asterisk.org/pub/telephony/sound
 ENV ASTERISK_AUDIO_PROMPTS_ES=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-es-wav-current.tar.gz
 ENV OMNILEADS_AUDIO_PROMPTS=https://omnileads.sfo3.digitaloceanspaces.com/asterisk-oml-sounds-current.tar.gz
 ENV OMNILEADS_MOH=https://omnileads.sfo3.digitaloceanspaces.com/asterisk-oml-moh-current.tar.gz
+ENV ASTERISK_SOUNDS_DIR=/var/lib/asterisk/sounds
+ENV ASTERISK_MOH_DIR=/var/lib/asterisk/moh
 
 RUN apt update -qq && apt upgrade -y && \
     apt install -y --no-install-recommends \
@@ -59,11 +61,14 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     fi
 
 # Descargar sonidos
-RUN mkdir -p /var/lib/asterisk/sounds/oml /var/lib/asterisk/sounds/en /var/lib/asterisk/sounds/es /var/lib/asterisk/moh /etc/asterisk/certs && \
-    wget -q $ASTERISK_AUDIO_PROMPTS_EN -O - | tar xzv -C /var/lib/asterisk/sounds/en || true && \
-    wget -q $ASTERISK_AUDIO_PROMPTS_ES -O - | tar xzv -C /var/lib/asterisk/sounds/es || true && \
-    wget -q $OMNILEADS_AUDIO_PROMPTS -O - | tar xzv -C /var/lib/asterisk/sounds/oml || true && \
-    wget -q $OMNILEADS_MOH -O - | tar xzv -C /var/lib/asterisk/moh || true
+RUN mkdir -p ${ASTERISK_SOUNDS_DIR}/oml ${ASTERISK_SOUNDS_DIR}/en ${ASTERISK_SOUNDS_DIR}/es ${ASTERISK_MOH_DIR} /etc/asterisk/certs && \
+    wget -q $ASTERISK_AUDIO_PROMPTS_EN -O - | tar xzv -C ${ASTERISK_SOUNDS_DIR}/en || true && \
+    wget -q $ASTERISK_AUDIO_PROMPTS_ES -O - | tar xzv -C ${ASTERISK_SOUNDS_DIR}/es || true && \
+    wget -q $OMNILEADS_AUDIO_PROMPTS -O - | tar xzv -C ${ASTERISK_SOUNDS_DIR}/oml || true && \
+    wget -q $OMNILEADS_MOH -O - | tar xzv -C ${ASTERISK_MOH_DIR} || true && \
+    mkdir -p ${ASTERISK_MOH_DIR}/dialer_1 && \
+    mv ${ASTERISK_MOH_DIR}/asterisk-oml-moh-current/oml_moh_dialer.wav ${ASTERISK_MOH_DIR}/dialer_1/
+
 
 # --- PREPARACIÓN DE LIBRERÍAS ---
 RUN mkdir -p /export-libs && \
