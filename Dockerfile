@@ -5,7 +5,7 @@ FROM debian:trixie-slim AS build
 ARG TARGETARCH
 
 ENV LANG=en_US.utf8
-ENV ASTERISK_VERSION=22.10.1
+ENV ASTERISK_VERSION=22.11.0
 ENV ASTERISK_AUDIO_PROMPTS_EN=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-en-wav-current.tar.gz
 ENV ASTERISK_AUDIO_PROMPTS_ES=https://downloads.asterisk.org/pub/telephony/sounds/asterisk-core-sounds-es-wav-current.tar.gz
 ENV OMNILEADS_AUDIO_PROMPTS=https://omnileads.sfo3.digitaloceanspaces.com/asterisk-oml-sounds-current.tar.gz
