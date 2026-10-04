@@ -14,6 +14,8 @@ variables:
   DOCKER_ORG: ""
   FULL: ""
   BUILD: ""
+  # ARM64=true → build/push multi-arch (amd64+arm64) vía devsecops docker-build-push.
+  ARM64: ""
   DOCKER_HOST: tcp://docker:2375
   DOCKER_TLS_CERTDIR: ""
   DOCKER_DRIVER: overlay2
