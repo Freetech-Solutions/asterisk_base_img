@@ -1,6 +1,6 @@
 include:
   - project: 'omnileads/devsecops'
-    ref: 'develop'
+    ref: 'main'
     file:
       - 'templates/security-scans.yml'
       - 'templates/gitleaks.yml'
@@ -16,6 +16,10 @@ variables:
   BUILD: ""
   # ARM64=true → build/push multi-arch (amd64+arm64) vía devsecops docker-build-push.
   ARM64: ""
+  # PUSH_VULTR=true → también publica en lax.vultrcr.com/omnileads (devsecops).
+  # DOCKER_REGISTRY=vultr → solo Vultr (sin Docker Hub).
+  PUSH_VULTR: ""
+  DOCKER_REGISTRY: ""
   DOCKER_HOST: tcp://docker:2375
   DOCKER_TLS_CERTDIR: ""
   DOCKER_DRIVER: overlay2
